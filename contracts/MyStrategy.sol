@@ -18,7 +18,6 @@ contract MyStrategy is BaseStrategy {
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
     /// @dev add any extra changeable variable at end of initializer as shown
-    /// @notice Dev must implement
     function initialize(address _vault, address[1] memory _wantConfig) public initializer {
         __BaseStrategy_init(_vault);
         /// @dev Add config here
@@ -35,12 +34,15 @@ contract MyStrategy is BaseStrategy {
         //     type(uint256).max
         // );
     }
-
+    
+    /// @dev Return the name of the strategy
     function getName() external pure override returns (string memory) {
         return "MyStrategy";
     }
 
-
+    /// @dev Return a list of protected tokens
+    /// @notice It's very important all tokens that are meant to be in the strategy to be marked as protected
+    /// @notice this provides security guarantees to the depositors they can't be sweeped away
     function getProtectedTokens() public view virtual override returns (address[] memory) {
         address[] memory protectedTokens = new address[](2);
         protectedTokens[0] = want;
@@ -48,18 +50,24 @@ contract MyStrategy is BaseStrategy {
         return protectedTokens;
     }
 
+    /// @dev Deposit `_amount` of want, investing it to earn yield
     function _deposit(uint256 _amount) internal override {
         // No-op as we don't do anything
     }
 
+    /// @dev Withdraw all funds, this is used for migrations, most of the time for emergency reasons
     function _withdrawAll() internal override {
         // No-op as we don't deposit
     }
 
+    /// @dev Withdraw `_amount` of want, so that it can be sent to the vault / depositor
+    /// @notice just unlock the funds and return the amount you could unlock
     function _withdrawSome(uint256 _amount) internal override returns (uint256) {
         return _amount;
     }
 
+
+    /// @dev Does this function require `tend` to be called?
     function _isTendable() internal override pure returns (bool) {
         return false; // Change to true if the strategy should be tended
     }
@@ -88,10 +96,13 @@ contract MyStrategy is BaseStrategy {
         return tended;
     }
 
+    /// @dev Return the balance (in want) that the strategy has invested somewhere
     function balanceOfPool() public view override returns (uint256) {
         return 0;
     }
 
+    /// @dev Return the balance of rewards that the strategy has accrued
+    /// @notice Used for offChain APY and Harvest Health monitoring
     function balanceOfRewards() external view override returns (TokenAmount[] memory rewards) {
         // Rewards are 0
         rewards = new TokenAmount[](2);
