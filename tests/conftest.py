@@ -6,6 +6,7 @@ from brownie import (
     interface,
     accounts,
 )
+from _setup.config import WANT, WHALE_ADDRESS
 from helpers.constants import MaxUint256
 from rich.console import Console
 
@@ -31,11 +32,11 @@ def want(deployer):
     """
         TODO: Customize this so you have the token you need for the strat
     """
-    TOKEN_ADDRESS = "0x3472A5A71965499acd81997a54BBA8D852C6E53d"
+    TOKEN_ADDRESS = WANT
     token = interface.IERC20Detailed(TOKEN_ADDRESS)
-    WHALE_ADDRESS = accounts.at("0x4441776e6a5d61fa024a5117bfc26b953ad1f425", force=True) ## Address with tons of token
+    WHALE = accounts.at(WHALE_ADDRESS, force=True) ## Address with tons of token
 
-    token.transfer(deployer, token.balanceOf(WHALE_ADDRESS), {"from": WHALE_ADDRESS})
+    token.transfer(deployer, token.balanceOf(WHALE), {"from": WHALE})
     return token
 
 
