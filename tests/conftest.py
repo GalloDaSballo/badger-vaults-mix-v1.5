@@ -4,11 +4,9 @@ from brownie import (
     MyStrategy,
     TheVault,
     interface,
-    AdminUpgradeabilityProxy,
     accounts,
 )
 from helpers.constants import MaxUint256
-from helpers.constants import AddressZero
 from rich.console import Console
 
 console = Console()
@@ -17,21 +15,30 @@ from dotmap import DotMap
 import pytest
 
 
-
 ## Accounts ##
 @pytest.fixture
 def deployer():
     return accounts[0]
 
+@pytest.fixture
+def user():
+    return accounts[9]
+
+
 ## Fund the account
 @pytest.fixture
 def want(deployer):
+    """
+        TODO: Customize this so you have the token you need for the strat
+    """
     TOKEN_ADDRESS = "0x3472A5A71965499acd81997a54BBA8D852C6E53d"
     token = interface.IERC20Detailed(TOKEN_ADDRESS)
     WHALE_ADDRESS = accounts.at("0x4441776e6a5d61fa024a5117bfc26b953ad1f425", force=True) ## Address with tons of token
 
     token.transfer(deployer, token.balanceOf(WHALE_ADDRESS), {"from": WHALE_ADDRESS})
     return token
+
+
 
 
 @pytest.fixture
