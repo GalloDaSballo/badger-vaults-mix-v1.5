@@ -73,7 +73,6 @@ contract MyStrategy is BaseStrategy {
     }
 
     function _harvest() internal override returns (TokenAmount[] memory harvested) {
-        _onlyAuthorizedActors();
         // No-op as we don't do anything with funds
         // use autoCompoundRatio here to convert rewards to want ...
         // keep this to get paid!
