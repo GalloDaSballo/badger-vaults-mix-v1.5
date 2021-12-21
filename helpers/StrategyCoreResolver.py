@@ -398,7 +398,7 @@ class StrategyCoreResolver:
         total_supply_before_deposit = before.get("sett.totalSupply")
         balance_before_deposit = before.get("sett.balance")
 
-        get_report_fees(
+        fees = get_report_fees(
             total_harvest_gain,
             performance_fee_treasury,
             performance_fee_strategist,
@@ -407,6 +407,22 @@ class StrategyCoreResolver:
             total_supply_before_deposit,
             balance_before_deposit,
         )
+
+        shares_perf_treasury = fees.shares_perf_treasury
+        shares_management = fees.shares_management
+        shares_perf_strategist = fees.shares_perf_strategist
+
+        delta_strategist = after.balances("sett", "strategist") - before.balances(
+                "sett", "strategist"
+            )
+        
+        assert delta_strategist == shares_perf_strategist
+
+        delta_treasury = after.balances("sett", "treasury") - before.balances(
+                "sett", "treasury"
+            )
+
+        assert delta_treasury == shares_perf_treasury + shares_management
 
     def confirm_tend(self, before, after, tx):
         """

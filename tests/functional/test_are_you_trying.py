@@ -2,7 +2,7 @@ from brownie import *
 from helpers.constants import MaxUint256
 
 
-def test_are_you_trying(deployer, vault, strategy, want):
+def test_are_you_trying(deployer, vault, strategy, want, governance):
     """
     Verifies that you set up the Strategy properly
     """
@@ -23,7 +23,7 @@ def test_are_you_trying(deployer, vault, strategy, want):
     available = vault.available()
     assert available > 0
 
-    vault.earn({"from": deployer})
+    vault.earn({"from": governance})
 
     chain.sleep(10000 * 13)  # Mine so we get some interest
 
@@ -40,7 +40,7 @@ def test_are_you_trying(deployer, vault, strategy, want):
     # assert strategy.balanceOf(want) = depositAmount
 
     ## TEST 2: Is the Harvest profitable?
-    harvest = strategy.harvest({"from": deployer})
+    harvest = strategy.harvest({"from": governance})
     event = harvest.events["Harvest"]
     # If it doesn't print, we don't want it
     assert event["harvested"] > 0
