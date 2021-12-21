@@ -37,7 +37,7 @@ contract MyStrategy is BaseStrategy {
     }
 
     function getName() external pure override returns (string memory) {
-        return "DemoStrategy";
+        return "MyStrategy";
     }
 
 
@@ -60,7 +60,11 @@ contract MyStrategy is BaseStrategy {
         return _amount;
     }
 
-    function harvest() external override whenNotPaused returns (TokenAmount[] memory harvested) {
+    function _isTendable() internal override pure returns (bool) {
+        return false; // Change to true if the strategy should be tended
+    }
+
+    function _harvest() internal override returns (TokenAmount[] memory harvested) {
         _onlyAuthorizedActors();
         // No-op as we don't do anything with funds
         // use autoCompoundRatio here to convert rewards to want ...
@@ -74,36 +78,9 @@ contract MyStrategy is BaseStrategy {
         return harvested;
     }
 
-    /// @dev function to test harvest -
-    // NOTE: want of 1 ether would be minted directly to DemoStrategy and this function would be called
-    /// @param amount how much was minted to report
-    function test_harvest(uint256 amount) external whenNotPaused returns (TokenAmount[] memory harvested) {
-        _onlyAuthorizedActors();
-
-        // Amount of want autocompounded after harvest in terms of want
-        // keep this to get paid!
-        _reportToVault(amount);
-
-        harvested = new TokenAmount[](2);
-        harvested[0] = TokenAmount(want, amount);
-        harvested[1] = TokenAmount(BADGER, 0); // Nothing harvested for Badger
-        return harvested;
-    }
-
-    function test_harvest_only_emit(address token, uint256 amount) external whenNotPaused returns (TokenAmount[] memory harvested){
-        _onlyAuthorizedActors();
-
-        // Note: This breaks if you don't send amount to the strat
-        _processExtraToken(token, amount);
-
-        harvested = new TokenAmount[](2);
-        harvested[0] = TokenAmount(want, 0); // Nothing harvested for want
-        harvested[1] = TokenAmount(BADGER, amount); 
-        return harvested;
-    }
 
     // Example tend is a no-op which returns the values, could also just revert
-    function tend() external override returns (TokenAmount[] memory tended){
+    function _tend() internal override returns (TokenAmount[] memory tended){
         // Nothing tended
         tended = new TokenAmount[](2);
         tended[0] = TokenAmount(want, 0);
