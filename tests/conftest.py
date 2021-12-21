@@ -6,7 +6,15 @@ from brownie import (
     interface,
     accounts,
 )
-from _setup.config import WANT, WHALE_ADDRESS
+from _setup.config import (
+    WANT, 
+    WHALE_ADDRESS,
+
+    PERFORMANCE_FEE_GOVERNANCE,
+    PERFORMANCE_FEE_STRATEGIST,
+    WITHDRAWAL_FEE,
+    MANAGEMENT_FEE,
+)
 from helpers.constants import MaxUint256
 from rich.console import Console
 
@@ -88,10 +96,6 @@ def deployed(want, deployer, strategist, keeper, guardian, governance, proxyAdmi
     """
     want = want
 
-    performanceFeeGovernance = 1000
-    performanceFeeStrategist = 1000
-    withdrawalFee = 50
-    managementFee = 50
 
     vault = TheVault.deploy({"from": deployer})
     vault.initialize(
@@ -105,10 +109,10 @@ def deployed(want, deployer, strategist, keeper, guardian, governance, proxyAdmi
         "",
         "",
         [
-            performanceFeeGovernance,
-            performanceFeeStrategist,
-            withdrawalFee,
-            managementFee,
+            PERFORMANCE_FEE_GOVERNANCE,
+            PERFORMANCE_FEE_STRATEGIST,
+            WITHDRAWAL_FEE,
+            MANAGEMENT_FEE,
         ],
     )
     vault.setStrategist(deployer, {"from": governance})
@@ -128,9 +132,10 @@ def deployed(want, deployer, strategist, keeper, guardian, governance, proxyAdmi
         governance=governance,
         proxyAdmin=proxyAdmin,
         randomUser=randomUser,
-        performanceFeeGovernance=performanceFeeGovernance,
-        performanceFeeStrategist=performanceFeeStrategist,
-        withdrawalFee=withdrawalFee,
+        performanceFeeGovernance=PERFORMANCE_FEE_GOVERNANCE,
+        performanceFeeStrategist=PERFORMANCE_FEE_STRATEGIST,
+        withdrawalFee=WITHDRAWAL_FEE,
+        managementFee=MANAGEMENT_FEE,
         badgerTree=badgerTree
     )
 
