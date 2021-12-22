@@ -5,7 +5,7 @@
 
 - Video Introduction: TODO
 - Example Project: TODO
-- Full Project Walkthrough: https://www.youtube.com/watch?v=lTb0RFJJx2k
+- Full Project Walkthrough: TODO
 
 ## What you'll find here
 
