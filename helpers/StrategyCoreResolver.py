@@ -269,17 +269,6 @@ class StrategyCoreResolver:
                     1,
                 )
 
-        # The total want between the strategy and sett should be less after than before
-        # if there was previous want in strategy or sett (sometimes we withdraw entire
-        # balance from the strategy pool) which we check above.
-        if (
-            before.balances("want", "strategy") > 0
-            or before.balances("want", "sett") > 0
-        ):
-            assert after.balances("want", "strategy") + after.balances(
-                "want", "sett"
-            ) < before.balances("want", "strategy") + before.balances("want", "sett")
-
         self.hook_after_confirm_withdraw(before, after, params)
 
     def confirm_deposit(self, before, after, params):
