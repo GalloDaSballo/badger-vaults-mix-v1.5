@@ -1,6 +1,6 @@
 import time
 
-from brownie import accounts, network, MyStrategy, SettV4, BadgerRegistry
+from brownie import accounts, network, MyStrategy, TheVault, BadgerRegistry
 
 from config import WANT, REWARD_TOKEN, LP_COMPONENT, REGISTRY
 
@@ -35,7 +35,7 @@ def main():
 
     # Add deployed Strategy and Vault contracts here:
     strategy = MyStrategy.at("0x3ff634ce65cDb8CC0D569D6d1697c41aa666cEA9")
-    vault = SettV4.at("0xfd05D3C7fe2924020620A8bE4961bBaA747e6305")
+    vault = TheVault.at("0xfd05D3C7fe2924020620A8bE4961bBaA747e6305")
 
     assert strategy.paused() == False
     assert vault.paused() == False

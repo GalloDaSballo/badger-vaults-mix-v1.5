@@ -4,12 +4,12 @@ from brownie import (
     accounts,
     network,
     AdminUpgradeabilityProxy,
-    VipCappedGuestListWrapperUpgradeable,
-    BadgerRegistry,
-    SettV4,
+    TheGuestlist,
+    interface,
+    TheVault,
 )
 
-from config import REGISTRY
+from _setup.config import REGISTRY
 
 from helpers.constants import AddressZero
 
@@ -41,10 +41,10 @@ def main():
     dev = connect_account()
 
     # Get actors from registry
-    registry = BadgerRegistry.at(REGISTRY)
+    registry = interface.IBadgerRegistry(REGISTRY)
 
     governance = registry.get("governance")
-    proxyAdmin = registry.get("proxyAdmin")
+    proxyAdmin = registry.get("proxyAdminTimelock")
 
     assert governance != AddressZero
     assert proxyAdmin != AddressZero
@@ -67,13 +67,13 @@ def main():
     assert guestlist.owner() == governance
 
     # Sets guestlist on Vault (Requires dev == Vault's governance)
-    vault = SettV4.at(vaultAddr)
+    vault = TheVault.at(vaultAddr)
     vault.setGuestList(guestlist.address, {"from": dev})
 
 
 def deploy_guestlist(dev, proxyAdmin, vaultAddr):
 
-    guestlist_logic = VipCappedGuestListWrapperUpgradeable.at(
+    guestlist_logic = TheGuestlist.at(
         "0x90A768B0bFF5e4e64f220832fc34f727CCE44d64"
     )  # Guestlist Logic
 
@@ -90,7 +90,7 @@ def deploy_guestlist(dev, proxyAdmin, vaultAddr):
 
     ## We delete from deploy and then fetch again so we can interact
     AdminUpgradeabilityProxy.remove(guestlist_proxy)
-    guestlist_proxy = VipCappedGuestListWrapperUpgradeable.at(guestlist_proxy.address)
+    guestlist_proxy = TheGuestlist.at(guestlist_proxy.address)
 
     console.print("[green]Guestlist was deployed at: [/green]", guestlist_proxy.address)
 
