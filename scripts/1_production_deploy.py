@@ -4,13 +4,20 @@ from brownie import (
     accounts,
     network,
     MyStrategy,
-    SettV4,
+    TheVault,
     AdminUpgradeabilityProxy,
-    Controller,
-    BadgerRegistry,
+    interface,
 )
 
-from config import WANT, PROTECTED_TOKENS, FEES, REGISTRY
+from _setup.config import (
+    WANT, 
+    REGISTRY,
+
+    PERFORMANCE_FEE_GOVERNANCE,
+    PERFORMANCE_FEE_STRATEGIST,
+    WITHDRAWAL_FEE,
+    MANAGEMENT_FEE,
+)
 
 from helpers.constants import AddressZero
 
@@ -25,7 +32,7 @@ sleep_between_tx = 1
 def main():
     """
     FOR STRATEGISTS AND GOVERNANCE
-    Deploys a Controller, a SettV4 and your strategy under upgradable proxies and wires them up.
+    Deploys a Controller, a TheVault and your strategy under upgradable proxies and wires them up.
     Note that it sets your deployer account as the governance for the three contracts so that
     the setup and production tests are simpler and more efficient. The rest of the permissioned actors
     are set based on the latest entries from the Badger Registry.
@@ -35,106 +42,75 @@ def main():
     dev = connect_account()
 
     # Get actors from registry
-    registry = BadgerRegistry.at(REGISTRY)
+    registry = interface.IBadgerRegistry(REGISTRY)
 
     strategist = registry.get("governance")
-    guardian = "0x29F7F8896Fb913CF7f9949C623F896a154727919"
-    keeper = "0x711a339c002386f9db409ca55b6a35a604ab6cf6"
-    proxyAdmin = "0x20Dce41Acca85E8222D6861Aa6D23B6C941777bF"
+    badgerTree = registry.get("badgerTree")
+    guardian = registry.get("guardian")
+    keeper = registry.get("keeper")
+    proxyAdmin = registry.get("proxyAdminTimelock")
 
-    name = "Badger Vested Escrow " ## Keep a space so it looks nice
-    symbol = "bve" ## e.g CVX is want -> symbol bveSymbolPrefixHereCVX
+    name = "FTM STRAT" ## In vaults 1.5 it's the full name
+    symbol = "bFRM-STrat" ## e.g The full symbol (remember to add symbol from want)
 
     assert strategist != AddressZero
     assert guardian != AddressZero
     assert keeper != AddressZero
     assert proxyAdmin != AddressZero
     assert name != "Name Prefix Here"
-    assert symbol != "bveSymbolPrefixHere"
-
-    # Deploy controller
-    controller = deploy_controller(dev, proxyAdmin)
+    assert symbol != "bveSymbolHere"
 
     # Deploy Vault
     vault = deploy_vault(
-        controller.address,
         dev.address,  # Deployer will be set as governance for testing stage
         keeper,
         guardian,
-        dev,
+        dev.address,
+        badgerTree,
         proxyAdmin,
         name,
-        symbol
+        symbol,
+        dev
     )
 
     # Deploy Strategy
-    # strategy = deploy_strategy(
-    #     controller.address,
-    #     dev.address,  # Deployer will be set as governance for testing stage
-    #     strategist,
-    #     keeper,
-    #     guardian,
-    #     dev,
-    #     proxyAdmin,
-    # )
+    strategy = deploy_strategy(
+        vault,
+        proxyAdmin,
+        dev
+    )
 
     strategy = MyStrategy.at("0x3ff634ce65cDb8CC0D569D6d1697c41aa666cEA9")
 
-    # Wire up vault and strategy to test controller
-    wire_up_test_controller(controller, vault, strategy, dev)
+    dev_setup = vault.setStrategy(strategy, {"from": dev})
+    console.print("[green]Strategy was set was deployed at: [/green]", dev_setup)
+    
 
 
-def deploy_controller(dev, proxyAdmin):
-
-    controller_logic = Controller.at(
-        "0x6354E79F21B56C11f48bcD7c451BE456D7102A36"
-    )
-
-    # Deployer address will be used for all actors as controller will only be used for testing
-    args = [
-        dev.address,
-        dev.address,
-        dev.address,
-        dev.address,
-    ]
-
-    controller_proxy = AdminUpgradeabilityProxy.deploy(
-        controller_logic,
-        proxyAdmin,
-        controller_logic.initialize.encode_input(*args),
-        {"from": dev}
-    )
-    time.sleep(sleep_between_tx)
-
-    ## We delete from deploy and then fetch again so we can interact
-    AdminUpgradeabilityProxy.remove(controller_proxy)
-    controller_proxy = Controller.at(controller_proxy.address)
-
-    console.print(
-        "[green]Controller was deployed at: [/green]", controller_proxy.address
-    )
-
-    return controller_proxy
-
-
-def deploy_vault(controller, governance, keeper, guardian, dev, proxyAdmin, name, symbol):
-
+def deploy_vault(governance, keeper, guardian, strategist, badgerTree, proxyAdmin, name, symbol, dev):
     args = [
         WANT,
-        controller,
         governance,
         keeper,
         guardian,
-        True,
+        governance,
+        strategist,
+        badgerTree,
         name,
         symbol,
+        [
+            PERFORMANCE_FEE_GOVERNANCE,
+            PERFORMANCE_FEE_STRATEGIST,
+            WITHDRAWAL_FEE,
+            MANAGEMENT_FEE,
+        ],
     ]
 
     print("Vault Arguments: ", args)
 
-    vault_logic = SettV4.at(
-        "0xA762292A6A7fD944Db1Fe9389921e6F639B4C9E8"
-    )  # SettV4 Logic
+    vault_logic = TheVault.deploy(
+        {"from": dev}
+    )  # TheVault Logic ## TODO: Deploy and use that
 
     vault_proxy = AdminUpgradeabilityProxy.deploy(
         vault_logic,
@@ -146,31 +122,20 @@ def deploy_vault(controller, governance, keeper, guardian, dev, proxyAdmin, name
 
     ## We delete from deploy and then fetch again so we can interact
     AdminUpgradeabilityProxy.remove(vault_proxy)
-    vault_proxy = SettV4.at(vault_proxy.address)
+    vault_proxy = TheVault.at(vault_proxy.address)
 
     console.print("[green]Vault was deployed at: [/green]", vault_proxy.address)
-
-    assert vault_proxy.paused()
-
-    vault_proxy.unpause({"from": dev})
-
-    assert vault_proxy.paused() == False
 
     return vault_proxy
 
 
 def deploy_strategy(
-    controller, governance, strategist, keeper, guardian, dev, proxyAdmin
+     vault, proxyAdmin, dev
 ):
 
     args = [
-        governance,
-        strategist,
-        controller,
-        keeper,
-        guardian,
-        PROTECTED_TOKENS,
-        FEES,
+        vault,
+        [WANT]
     ]
 
     print("Strategy Arguments: ", args)
@@ -194,25 +159,6 @@ def deploy_strategy(
 
     return strat_proxy
 
-
-def wire_up_test_controller(controller, vault, strategy, dev):
-    controller.approveStrategy(WANT, strategy.address, {"from": dev})
-    time.sleep(sleep_between_tx)
-    assert controller.approvedStrategies(WANT, strategy.address) == True
-
-    controller.setStrategy(WANT, strategy.address, {"from": dev})
-    time.sleep(sleep_between_tx)
-    assert controller.strategies(WANT) == strategy.address
-
-    controller.setVault(WANT, vault.address, {"from": dev})
-    time.sleep(sleep_between_tx)
-    assert controller.vaults(WANT) == vault.address
-
-    console.print("[blue]Controller wired up![/blue]")
-
-    console.print("[blue]Controller wired up![/blue]")
-    console.print(vault.name())
-    console.print(vault.symbol())
 
 
 def connect_account():
