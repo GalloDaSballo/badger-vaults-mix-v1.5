@@ -21,16 +21,15 @@ def from_want_to_shares(
 
 
 def from_shares_to_want(
-    shares_to_burn, ppfs_before_withdraw, vault_decimals, withdrawal_fee_bps
+    shares_to_burn, ppfs_before_withdraw, vault_decimals
 ):
     """
-    Used to estimate how much want you'll get for a withdrawal, by burning the shares
+    Used to estimate how much want you'll get for a withdrawal, by burning the shares (including fees)
     """
     ## Math from Solidity
-    value = shares_to_burn * ppfs_before_withdraw / 10 ** vault_decimals
-    expected_withdrawn = value - (value * withdrawal_fee_bps / MAX_BPS)
+    expected_want = shares_to_burn * ppfs_before_withdraw / 10 ** vault_decimals
 
-    return expected_withdrawn
+    return expected_want
 
 
 def get_withdrawal_fees_in_want(

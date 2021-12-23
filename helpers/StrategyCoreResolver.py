@@ -195,7 +195,6 @@ class StrategyCoreResolver:
         - Decrease the balance() tracked for want in the Strategy
         - Decrease the available() if it is not zero
         """
-        ppfs = before.get("sett.getPricePerFullShare")
 
         console.print("=== Compare Withdraw ===")
         self.manager.printCompare(before, after)
@@ -214,11 +213,32 @@ class StrategyCoreResolver:
 
         ## Accurately check user got the expected amount
 
+        shares_to_burn = params["amount"]
+        ppfs_before_withdraw = before.get("sett.getPricePerFullShare")
+        vault_decimals = before.get("sett.decimals")
+
+        # Want in the strategy should be decreased, if idle in sett is insufficient to cover withdrawal
+        if params["amount"] > before.balances("want", "sett"):
+            # Adjust amount based on total balance x total supply
+            # Division in python is not accurate, use Decimal package to ensure division is consistent w/ division inside of EVM
+            expectedWithdraw = from_shares_to_want(shares_to_burn, ppfs_before_withdraw, vault_decimals)
+            # Withdraw from idle in sett first
+            expectedWithdraw -= before.balances("want", "sett")
+            # First we attempt to withdraw from idle want in strategy
+            if expectedWithdraw >= before.balances("want", "strategy"):
+                # If insufficient, we then attempt to withdraw from activities (balance of pool)
+                # Just ensure that we have enough in the pool balance to satisfy the request
+                expectedWithdraw -= before.balances("want", "strategy")
+                assert expectedWithdraw <= before.get("strategy.balanceOfPool")
+
+                assert approx(
+                    before.get("strategy.balanceOfPool"),
+                    after.get("strategy.balanceOfPool") + expectedWithdraw,
+                    1,
+                )
+
         ## Accurately calculate withdrawal fee
         if before.get("sett.withdrawalFee") > 0:
-            shares_to_burn = params["amount"]
-            ppfs_before_withdraw = before.get("sett.getPricePerFullShare")
-            vault_decimals = before.get("sett.decimals")
             withdrawal_fee_bps = before.get("sett.withdrawalFee")
             total_supply_before_withdraw = before.get("sett.totalSupply")
             vault_balance_before_withdraw = before.get("sett.balance")
@@ -248,26 +268,39 @@ class StrategyCoreResolver:
                 before.balances("sett", "treasury") + fee,
                 1,
             )
-        
-        # Want in the strategy should be decreased, if idle in sett is insufficient to cover withdrawal
-        if params["amount"] > before.balances("want", "sett"):
-            # Adjust amount based on total balance x total supply
-            # Division in python is not accurate, use Decimal package to ensure division is consistent w/ division inside of EVM
-            expectedWithdraw = from_shares_to_want(shares_to_burn, ppfs_before_withdraw, vault_decimals, withdrawal_fee_bps)
-            # Withdraw from idle in sett first
-            expectedWithdraw -= before.balances("want", "sett")
-            # First we attempt to withdraw from idle want in strategy
-            if expectedWithdraw > before.balances("want", "strategy"):
-                # If insufficient, we then attempt to withdraw from activities (balance of pool)
-                # Just ensure that we have enough in the pool balance to satisfy the request
-                expectedWithdraw -= before.balances("want", "strategy")
-                assert expectedWithdraw <= before.get("strategy.balanceOfPool")
 
-                assert approx(
-                    before.get("strategy.balanceOfPool"),
-                    after.get("strategy.balanceOfPool") + expectedWithdraw,
-                    1,
-                )
+            fee_in_want = from_shares_to_want(fee, after.get("sett.getPricePerFullShare"), vault_decimals)
+
+            # The total want between the strategy and sett (minus withdrawal fee) should be less after 
+            # than before if there was previous want in strategy or sett (sometimes we withdraw
+            # entire balance from the strategy pool) which we check above.
+            if (
+                before.balances("want", "strategy") > 0
+                or before.balances("want", "sett") > 0
+            ):
+                # Withdrawal adds some extra want to sett + strategy in the form of fees
+                assert after.balances("want", "strategy") + after.balances(
+                    "want", "sett"
+                ) < before.balances("want", "strategy") + before.balances("want", "sett") + fee_in_want
+            else:
+                # Only liquid want should be in the sett in the form of withdrawal fees
+                assert after.balances("want", "sett")  == fee_in_want
+                assert after.balances("want", "strategy") == 0
+
+        else:
+            # Treasury balance should remain same
+            assert after.balances("sett", "treasury") == before.balances("sett", "treasury")
+
+            # The total want between the strategy and sett + fee accumulated should be less after 
+            # than before if there was previous want in strategy or sett (sometimes we withdraw
+            # entire balance from the strategy pool) which we check above.
+            if (
+                before.balances("want", "strategy") > 0
+                or before.balances("want", "sett") > 0
+            ):
+                assert after.balances("want", "strategy") + after.balances(
+                    "want", "sett"
+                ) < before.balances("want", "strategy") + before.balances("want", "sett")
 
         self.hook_after_confirm_withdraw(before, after, params)
 

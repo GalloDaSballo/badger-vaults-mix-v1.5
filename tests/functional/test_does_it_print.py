@@ -53,8 +53,6 @@ def test_is_profitable(vault, strategy, want, randomUser, deployer):
     assert ending_balance > initial_balance_with_fees
 
 def test_is_acceptable_apr(vault, strategy, want, keeper, deployer):
-    initial_balance = want.balanceOf(deployer)
-
     snap = SnapshotManager(vault, strategy, "StrategySnapshot")
 
     # Deposit
@@ -83,7 +81,7 @@ def test_is_acceptable_apr(vault, strategy, want, keeper, deployer):
     # Harvest
     strategy.harvest({"from": keeper})
 
-    # Non-zero harvest
+    # Harvest should be non-zero if strat is printing
     assert vault.lastHarvestAmount() > 0
     # Ensure strategy reports correct harvestedAmount
     assert vault.assetsAtLastHarvest() == vault_balance1
