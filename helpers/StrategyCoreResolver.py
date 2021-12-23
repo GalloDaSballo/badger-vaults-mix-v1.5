@@ -367,14 +367,14 @@ class StrategyCoreResolver:
 
         # # Strategist should earn if fee is enabled and value was generated
         if before.get("sett.performanceFeeStrategist") > 0 and valueGained:
-            assert after.balances("want", "strategist") > before.balances(
-                "want", "strategist"
+            assert after.balances("sett", "strategist") > before.balances(
+                "sett", "strategist"
             )
 
         # # Strategist should earn if fee is enabled and value was generated
         if before.get("sett.performanceFeeGovernance") > 0 and valueGained:
-            assert after.balances("want", "treasury") > before.balances(
-                "want", "treasury"
+            assert after.balances("sett", "treasury") > before.balances(
+                "sett", "treasury"
             )
         
 
