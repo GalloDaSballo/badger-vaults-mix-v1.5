@@ -1,6 +1,11 @@
 from brownie import *
 from decimal import Decimal
-from helpers.shares_math import get_withdrawal_fees_in_shares, from_shares_to_want, get_report_fees
+from helpers.shares_math import (
+    get_withdrawal_fees_in_shares,
+    get_withdrawal_fees_in_want,
+    from_shares_to_want,
+    get_report_fees,
+)
 
 from helpers.utils import (
     approx,
@@ -195,30 +200,72 @@ class StrategyCoreResolver:
         - Decrease the balance() tracked for want in the Strategy
         - Decrease the available() if it is not zero
         """
-        ppfs = before.get("sett.getPricePerFullShare")
 
         console.print("=== Compare Withdraw ===")
         self.manager.printCompare(before, after)
 
         if params["amount"] == 0:
+            # NOTE: withdraw(0) reverts so this should never be hit
             assert after.get("sett.totalSupply") == before.get("sett.totalSupply")
             # Decrease the Sett tokens for the user based on withdrawAmount and pricePerFullShare
             assert after.balances("sett", "user") == before.balances("sett", "user")
             return
 
+        shares_to_burn = params["amount"]
+        ppfs_before_withdraw = before.get("sett.getPricePerFullShare")
+        vault_decimals = before.get("sett.decimals")
+
+        # We check 4 things:
+        # 1. burn() works properly
+        # 2. strategy withdraws accurate amount
+        # 3. withdrawal fee is calculated properly
+        # 4. user gets back ~correct amount/something
+
+        # 1.
         # Decrease the totalSupply of Sett tokens
-        assert after.get("sett.totalSupply") < before.get("sett.totalSupply")
+        assert approx(
+            after.get("sett.totalSupply") + shares_to_burn,
+            before.get("sett.totalSupply"),
+            1,
+        )
 
-        # Decrease the Sett tokens for the user based on withdrawAmount and pricePerFullShare
-        assert after.balances("sett", "user") < before.balances("sett", "user")
+        assert approx(
+            after.balances("sett", "user") + shares_to_burn,
+            before.balances("sett", "user"),
+            1,
+        )
 
+        # 2.
         ## Accurately check user got the expected amount
+        # Amount of want expected to be withdrawn
+        expected_want = from_shares_to_want(
+            shares_to_burn, ppfs_before_withdraw, vault_decimals
+        )
 
+        # Want in the strategy should be decreased, if idle in sett is insufficient to cover withdrawal
+        if expected_want > before.balances("want", "sett"):
+            # Withdraw from idle in sett first
+            want_required_from_strat = expected_want - before.balances("want", "sett")
+
+            # Ensure that we have enough in the strategy to satisfy the request
+            assert want_required_from_strat <= before.get("strategy.balanceOf")
+
+            # # NOTE: Assumes strategy don't lose > 1%
+            # Strategies can lose money upto a certain threshold. On calling withdraw on a strategy
+            # for some amount, we can only be sure that the strategy returns some minimum amount back
+            # (based on a adjustable threshold parameter)
+
+            # Strategy should get at least this amount of want after withdrawing from pool
+            assert approx(
+                before.get("strategy.balanceOf") - want_required_from_strat,
+                after.get("strategy.balanceOf"),
+                1,
+            )
+
+        # 3.
         ## Accurately calculate withdrawal fee
+        fee = fee_in_want = 0
         if before.get("sett.withdrawalFee") > 0:
-            shares_to_burn = params["amount"]
-            ppfs_before_withdraw = before.get("sett.getPricePerFullShare")
-            vault_decimals = before.get("sett.decimals")
             withdrawal_fee_bps = before.get("sett.withdrawalFee")
             total_supply_before_withdraw = before.get("sett.totalSupply")
             vault_balance_before_withdraw = before.get("sett.balance")
@@ -232,42 +279,42 @@ class StrategyCoreResolver:
                 vault_balance_before_withdraw,
             )
 
-            ## We got shares issued as expected
-            """
-                NOTE: We have to approx here
-                We approx because for rounding we may get 1 less share
-                >>> after.balances("sett", "treasury")
-                399999999999999999
-                >>> before.balances("sett", "treasury")
-                200000000000000000
-                >>> fee
-                2e+17
-            """
-            assert approx(
-                after.balances("sett", "treasury"),
-                before.balances("sett", "treasury") + fee,
-                1,
+            fee_in_want = get_withdrawal_fees_in_want(
+                shares_to_burn, ppfs_before_withdraw, vault_decimals, withdrawal_fee_bps
             )
-        
-        # Want in the strategy should be decreased, if idle in sett is insufficient to cover withdrawal
-        if params["amount"] > before.balances("want", "sett"):
-            # Adjust amount based on total balance x total supply
-            # Division in python is not accurate, use Decimal package to ensure division is consistent w/ division inside of EVM
-            expectedWithdraw = from_shares_to_want(shares_to_burn, ppfs_before_withdraw, vault_decimals, withdrawal_fee_bps)
-            # Withdraw from idle in sett first
-            expectedWithdraw -= before.balances("want", "sett")
-            # First we attempt to withdraw from idle want in strategy
-            if expectedWithdraw > before.balances("want", "strategy"):
-                # If insufficient, we then attempt to withdraw from activities (balance of pool)
-                # Just ensure that we have enough in the pool balance to satisfy the request
-                expectedWithdraw -= before.balances("want", "strategy")
-                assert expectedWithdraw <= before.get("strategy.balanceOfPool")
+            assert fee > 0 and fee_in_want > 0
 
-                assert approx(
-                    before.get("strategy.balanceOfPool"),
-                    after.get("strategy.balanceOfPool") + expectedWithdraw,
-                    1,
-                )
+        ## We got shares issued as expected
+        """
+            NOTE: We have to approx here
+            We approx because for rounding we may get 1 less share
+            >>> after.balances("sett", "treasury")
+            399999999999999999
+            >>> before.balances("sett", "treasury")
+            200000000000000000
+            >>> fee
+            2e+17
+        """
+        assert approx(
+            after.balances("sett", "treasury"),
+            before.balances("sett", "treasury") + fee,
+            1,
+        )
+
+        # 4.
+        # # NOTE: Assumes strategy don't lose > 1%
+        # Withdrawal increases user balance
+        assert approx(
+            after.balances("want", "user"),
+            before.balances("want", "user") + expected_want - fee_in_want,
+            1,
+        )
+        # Withdrawal should decrease balance of sett
+        assert approx(
+            after.get("sett.balance"),
+            before.get("sett.balance") - expected_want + fee_in_want,
+            1,
+        )
 
         self.hook_after_confirm_withdraw(before, after, params)
 
@@ -355,8 +402,6 @@ class StrategyCoreResolver:
         # self.manager.printCompare(before, after)
         # self.confirm_harvest_state(before, after, tx)
 
-
-
         ## TODO: Verify harvest, and verify that the correct amount of shares was issued against perf fees
         # 2- Use custom test and code to finish this oen
 
@@ -376,14 +421,15 @@ class StrategyCoreResolver:
             assert after.balances("sett", "treasury") > before.balances(
                 "sett", "treasury"
             )
-        
 
         ## Specific check to prove that gain was as modeled
         total_harvest_gain = after.get("sett.balance") - before.get("sett.balance")
         performance_fee_treasury = before.get("sett.performanceFeeGovernance")
         performance_fee_strategist = before.get("sett.performanceFeeStrategist")
         management_fee = before.get("sett.managementFee")
-        time_since_last_harvest = after.get("sett.lastHarvestedAt") - before.get("sett.lastHarvestedAt")
+        time_since_last_harvest = after.get("sett.lastHarvestedAt") - before.get(
+            "sett.lastHarvestedAt"
+        )
         total_supply_before_deposit = before.get("sett.totalSupply")
         balance_before_deposit = before.get("sett.balance")
 
@@ -402,14 +448,14 @@ class StrategyCoreResolver:
         shares_perf_strategist = fees.shares_perf_strategist
 
         delta_strategist = after.balances("sett", "strategist") - before.balances(
-                "sett", "strategist"
-            )
-        
+            "sett", "strategist"
+        )
+
         assert delta_strategist == shares_perf_strategist
 
         delta_treasury = after.balances("sett", "treasury") - before.balances(
-                "sett", "treasury"
-            )
+            "sett", "treasury"
+        )
 
         assert delta_treasury == shares_perf_treasury + shares_management
 

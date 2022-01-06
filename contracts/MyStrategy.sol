@@ -70,13 +70,15 @@ contract MyStrategy is BaseStrategy {
     function _harvest() internal override returns (TokenAmount[] memory harvested) {
         // No-op as we don't do anything with funds
         // use autoCompoundRatio here to convert rewards to want ...
-        // keep this to get paid!
-        // _reportToVault(earned);
 
         // Nothing harvested, we have 2 tokens, return both 0s
         harvested = new TokenAmount[](2);
         harvested[0] = TokenAmount(want, 0);
         harvested[1] = TokenAmount(BADGER, 0);
+
+        // keep this to get paid!
+        _reportToVault(0);
+
         return harvested;
     }
 
