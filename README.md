@@ -1,7 +1,7 @@
 
 # Badger Strategy V1.5 Brownie Mix
 
-# WORK IN PROGRESS - USE AT YOUR OWN RISK - NOT AUDITED!!!!!!
+# WORK IN PROGRESS - USE AT YOUR OWN RISK - See Vaults 1.5 Repo for Audit Reports
 
 - Video Introduction: TODO
 - Example Project: TODO
