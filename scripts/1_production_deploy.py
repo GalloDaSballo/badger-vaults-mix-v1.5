@@ -80,8 +80,6 @@ def main():
         dev
     )
 
-    strategy = MyStrategy.at("0x3ff634ce65cDb8CC0D569D6d1697c41aa666cEA9")
-
     dev_setup = vault.setStrategy(strategy, {"from": dev})
     console.print("[green]Strategy was set was deployed at: [/green]", dev_setup)
     
