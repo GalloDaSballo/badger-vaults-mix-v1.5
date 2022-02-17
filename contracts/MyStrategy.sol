@@ -10,7 +10,7 @@ contract MyStrategy is BaseStrategy {
     // address public lpComponent; // Token that represents ownership in a pool, not always used
     // address public reward; // Token we farm
 
-    address constant public BADGER = 0x3472A5A71965499acd81997a54BBA8D852C6E53d; 
+    address constant BADGER = 0x3472A5A71965499acd81997a54BBA8D852C6E53d;
 
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
@@ -47,17 +47,20 @@ contract MyStrategy is BaseStrategy {
 
     /// @dev Deposit `_amount` of want, investing it to earn yield
     function _deposit(uint256 _amount) internal override {
-        // No-op as we don't do anything
+        // Add code here to invest `_amount` of want to earn yield 
     }
 
     /// @dev Withdraw all funds, this is used for migrations, most of the time for emergency reasons
     function _withdrawAll() internal override {
-        // No-op as we don't deposit
+        // Add code here to unlock all available funds
     }
 
     /// @dev Withdraw `_amount` of want, so that it can be sent to the vault / depositor
     /// @notice just unlock the funds and return the amount you could unlock
     function _withdrawSome(uint256 _amount) internal override returns (uint256) {
+        // Add code here to unlock / withdraw `_amount` of tokens to the withdrawer
+        // If there's a loss, make sure to have the withdrawer pay the loss to avoid exploits
+        // Socializing loss is always a bad idea
         return _amount;
     }
 
@@ -94,6 +97,7 @@ contract MyStrategy is BaseStrategy {
 
     /// @dev Return the balance (in want) that the strategy has invested somewhere
     function balanceOfPool() public view override returns (uint256) {
+        // Change this to return the amount of want invested in another protocol
         return 0;
     }
 

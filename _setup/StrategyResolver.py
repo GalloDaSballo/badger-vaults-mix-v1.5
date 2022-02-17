@@ -35,10 +35,9 @@ class StrategyResolver(StrategyCoreResolver):
         assert True
 
     # def confirm_harvest(self, before, after, tx):
-    # NOTE: Add this in mix 1.5 but comment for tests in main repo
-    #
     #     """
     #     Verfies that the Harvest produced yield and fees
+    #     NOTE: This overrides default check, use only if you know what you're doing
     #     """
     #     console.print("=== Compare Harvest ===")
     #     self.manager.printCompare(before, after)
