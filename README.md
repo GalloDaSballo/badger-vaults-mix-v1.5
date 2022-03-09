@@ -1,9 +1,10 @@
 
 # Badger Strategy V1.5 Brownie Mix
 
-- Video Introduction: TODO
-- Example Project: TODO
-- Full Project Walkthrough: TODO
+See Vaults 1.5 Repo for Audit Reports
+
+- Video Introduction: https://youtu.be/b5NptGHm8gw
+- Example Project: [Avalanche wBTC AAVE Simple Deposit Strategy](https://github.com/GalloDaSballo/avalance-wbtc-aave-1.5)
 
 ## What you'll find here
 
