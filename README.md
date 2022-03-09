@@ -3,9 +3,8 @@
 
 # WORK IN PROGRESS - USE AT YOUR OWN RISK - See Vaults 1.5 Repo for Audit Reports
 
-- Video Introduction: TODO
-- Example Project: TODO
-- Full Project Walkthrough: TODO
+- Video Introduction: https://youtu.be/b5NptGHm8gw
+- Example Project: [Avalanche wBTC AAVE Simple Deposit Strategy](https://github.com/GalloDaSballo/avalance-wbtc-aave-1.5)
 
 ## What you'll find here
 
