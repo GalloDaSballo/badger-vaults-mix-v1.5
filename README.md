@@ -1,8 +1,6 @@
 
 # Badger Strategy V1.5 Brownie Mix
 
-# WORK IN PROGRESS - USE AT YOUR OWN RISK - NOT AUDITED!!!!!!
-
 - Video Introduction: TODO
 - Example Project: TODO
 - Full Project Walkthrough: TODO
